@@ -13,6 +13,7 @@ const COMPONENTS: Record<
     fallback:
       "A bearing housing holds the bearing that supports a rotating shaft. Its main job is to keep that shaft correctly located under load. The difficult features are usually the bearing bore, the mounting face and their relationship to one another: a bore can be the right diameter and still cause vibration if it is not round, square or aligned. Machining normally combines milling, boring or reaming, careful workholding and a controlled finishing pass. Inspection should prioritise bore size, roundness, coaxiality, mounting-face flatness and the drawing’s specified fit. A Pro-level process may suit critical bearing features, but the drawing always decides the final tier.",
   },
+
   "motor-mount": {
     name: "motor mount",
     context:
@@ -20,6 +21,7 @@ const COMPONENTS: Record<
     fallback:
       "A motor mount fixes a motor to the rest of an assembly and preserves the alignment needed to transfer motion cleanly. Its risk is often relational rather than tiny size alone: the hole pattern, locating features and motor face must line up so the coupling or belt does not run under stress. A typical route is CNC milling, drilling and threading, followed by deburring and finish treatment. Inspection should focus on hole position, face flatness, perpendicularity, thread quality and any datum features called out on the drawing. Standard precision is often enough for a robust bracket; critical alignment features may justify a tighter tier.",
   },
+
   "fluid-manifold": {
     name: "fluid manifold",
     context:
@@ -40,30 +42,55 @@ function fallbackResponse(componentId: ComponentId) {
   });
 }
 
+type GeminiPayload = {
+  output_text?: unknown;
+  steps?: Array<{
+    type?: string;
+    content?: Array<{
+      type?: string;
+      text?: unknown;
+    }>;
+  }>;
+};
+
 export async function POST(request: Request) {
   let body: { componentId?: unknown; question?: unknown };
 
   try {
-    body = (await request.json()) as { componentId?: unknown; question?: unknown };
+    body = (await request.json()) as {
+      componentId?: unknown;
+      question?: unknown;
+    };
   } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid JSON body" },
+      { status: 400 }
+    );
   }
 
   if (!isComponentId(body.componentId)) {
-    return NextResponse.json({ error: "Unknown CNC component" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Unknown CNC component" },
+      { status: 400 }
+    );
   }
 
   const component = COMPONENTS[body.componentId];
+
   const question =
     typeof body.question === "string"
       ? body.question.trim().slice(0, 280)
       : `Explain this ${component.name}.`;
 
   const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) return fallbackResponse(body.componentId);
+
+  if (!apiKey) {
+    console.error("GEMINI_API_KEY is missing");
+    return fallbackResponse(body.componentId);
+  }
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8_000);
+  const timeout = setTimeout(() => controller.abort(), 8000);
 
   try {
     const response = await fetch(
@@ -79,7 +106,8 @@ export async function POST(request: Request) {
           input: [
             "You are the Antropi Robotics CNC component guide.",
             "Answer a potential manufacturing customer in plain English.",
-            "Be accurate, concise and practical. Explain function, machining risk and inspection priorities when relevant.",
+            "Be accurate, concise and practical.",
+            "Explain function, machining risk and inspection priorities when relevant.",
             "Do not invent certifications, prices, lead times or guaranteed tolerances.",
             "State that the engineering drawing controls the final manufacturing decision when needed.",
             `Component context: ${component.context}`,
@@ -88,19 +116,62 @@ export async function POST(request: Request) {
           ].join("\n"),
         }),
         signal: controller.signal,
-      },
+      }
     );
 
-    if (!response.ok) return fallbackResponse(body.componentId);
+    if (!response.ok) {
+      const errorText = await response.text();
 
-    const payload = (await response.json()) as { output_text?: unknown };
-    const answer =
-      typeof payload.output_text === "string" ? payload.output_text.trim() : "";
+      console.error(
+        "Gemini API error:",
+        response.status,
+        errorText
+      );
 
-    if (!answer) return fallbackResponse(body.componentId);
+      return fallbackResponse(body.componentId);
+    }
 
-    return NextResponse.json({ answer, source: "gemini" as const });
-  } catch {
+    const payload = (await response.json()) as GeminiPayload;
+
+    // SDK-style response, kept for compatibility
+    const directAnswer =
+      typeof payload.output_text === "string"
+        ? payload.output_text.trim()
+        : "";
+
+    // Raw REST Interactions API response
+    const stepsAnswer =
+      payload.steps
+        ?.filter((step) => step.type === "model_output")
+        .flatMap((step) => step.content ?? [])
+        .filter(
+          (item) =>
+            item.type === "text" &&
+            typeof item.text === "string"
+        )
+        .map((item) => item.text as string)
+        .join("\n")
+        .trim() ?? "";
+
+    const answer = directAnswer || stepsAnswer;
+
+    if (!answer) {
+      console.error(
+        "Gemini returned no usable text:",
+        JSON.stringify(payload)
+      );
+
+      return fallbackResponse(body.componentId);
+    }
+
+    return NextResponse.json({
+      answer,
+      source: "gemini" as const,
+    });
+
+  } catch (error) {
+    console.error("Gemini request failed:", error);
+
     return fallbackResponse(body.componentId);
   } finally {
     clearTimeout(timeout);
