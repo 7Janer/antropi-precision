@@ -11,7 +11,7 @@ const COMPONENTS: Record<
     context:
       "A bearing housing supports a rolling bearing and locates a rotating shaft. Important manufacturing concerns include bearing-bore size and roundness, bore-to-face alignment, mounting-face flatness, coaxiality and the transition fits specified on the engineering drawing.",
     fallback:
-      "A bearing housing holds the bearing that supports a rotating shaft. Its main job is to keep that shaft correctly located under load. The difficult features are usually the bearing bore, the mounting face and their relationship to one another: a bore can be the right diameter and still cause vibration if it is not round, square or aligned. Machining normally combines milling, boring or reaming, careful workholding and a controlled finishing pass. Inspection should prioritise bore size, roundness, coaxiality, mounting-face flatness and the drawingÃ¢â‚¬â„¢s specified fit. A Pro-level process may suit critical bearing features, but the drawing always decides the final tier.",
+      "A bearing housing holds the bearing that supports a rotating shaft. Its main job is to keep that shaft correctly located under load. The difficult features are usually the bearing bore, the mounting face and their relationship to one another: a bore can be the right diameter and still cause vibration if it is not round, square or aligned. Machining normally combines milling, boring or reaming, careful workholding and a controlled finishing pass. Inspection should prioritise bore size, roundness, coaxiality, mounting-face flatness and the drawingÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢s specified fit. A Pro-level process may suit critical bearing features, but the drawing always decides the final tier.",
   },
 
   "motor-mount": {
@@ -35,10 +35,14 @@ function isComponentId(value: unknown): value is ComponentId {
   return typeof value === "string" && value in COMPONENTS;
 }
 
-function fallbackResponse(componentId: ComponentId) {
+function fallbackResponse(
+  componentId: ComponentId,
+  diagnostic = "unknown"
+) {
   return NextResponse.json({
     answer: COMPONENTS[componentId].fallback,
     source: "fallback" as const,
+    diagnostic,
   });
 }
 
@@ -131,7 +135,10 @@ export async function POST(request: Request) {
         errorText
       );
 
-      return fallbackResponse(body.componentId);
+      return fallbackResponse(
+        body.componentId,
+        `gemini_http_${response.status}`
+      );
     }
 
     const payload = (await response.json()) as GeminiPayload;
@@ -164,7 +171,10 @@ export async function POST(request: Request) {
         JSON.stringify(payload)
       );
 
-      return fallbackResponse(body.componentId);
+      return fallbackResponse(
+        body.componentId,
+        "empty_gemini_response"
+      );
     }
 
     return NextResponse.json({
@@ -175,7 +185,12 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("Gemini request failed:", error);
 
-    return fallbackResponse(body.componentId);
+    const reason =
+      error instanceof Error
+        ? `request_exception_${error.name}`
+        : "request_exception_unknown";
+
+    return fallbackResponse(body.componentId, reason);
   } finally {
     clearTimeout(timeout);
   }
