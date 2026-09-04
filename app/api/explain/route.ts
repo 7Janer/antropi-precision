@@ -11,7 +11,7 @@ const COMPONENTS: Record<
     context:
       "A bearing housing supports a rolling bearing and locates a rotating shaft. Important manufacturing concerns include bearing-bore size and roundness, bore-to-face alignment, mounting-face flatness, coaxiality and the transition fits specified on the engineering drawing.",
     fallback:
-      "A bearing housing holds the bearing that supports a rotating shaft. Its main job is to keep that shaft correctly located under load. The difficult features are usually the bearing bore, the mounting face and their relationship to one another: a bore can be the right diameter and still cause vibration if it is not round, square or aligned. Machining normally combines milling, boring or reaming, careful workholding and a controlled finishing pass. Inspection should prioritise bore size, roundness, coaxiality, mounting-face flatness and the drawingÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢s specified fit. A Pro-level process may suit critical bearing features, but the drawing always decides the final tier.",
+      "A bearing housing holds the bearing that supports a rotating shaft. Its main job is to keep that shaft correctly located under load. The difficult features are usually the bearing bore, the mounting face and their relationship to one another: a bore can be the right diameter and still cause vibration if it is not round, square or aligned. Machining normally combines milling, boring or reaming, careful workholding and a controlled finishing pass. Inspection should prioritise bore size, roundness, coaxiality, mounting-face flatness and the drawingÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¾ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢s specified fit. A Pro-level process may suit critical bearing features, but the drawing always decides the final tier.",
   },
 
   "motor-mount": {
@@ -108,7 +108,7 @@ export async function POST(request: Request) {
         body: JSON.stringify({
           model: process.env.GEMINI_MODEL || "gemini-3.8-flash",
           generation_config: {
-            thinking_level: "minimal",
+            thinking_level: "low",
             max_output_tokens: 250,
           },
           input: [
